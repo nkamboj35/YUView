@@ -106,4 +106,69 @@ TEST(PixelFormatRGBTest, testInvalidFormats)
     EXPECT_FALSE(fmt.isValid()) << "Format " << fmt.getName() << " should be invalid.";
 }
 
+TEST(PixelFormatRGBTest, testSampleTypeRoundtrip)
+{
+  const PixelFormatRGB formatFloat(16,
+                                   DataLayout::Packed,
+                                   ChannelOrder::RGB,
+                                   AlphaMode::Last,
+                                   Endianness::Little,
+                                   SampleType::BFloat16);
+
+  const auto name = formatFloat.getName();
+  EXPECT_EQ(name, std::string("RGBA 16bit BF16"));
+
+  const PixelFormatRGB parsed(name);
+  EXPECT_EQ(parsed.getSampleType(), SampleType::BFloat16);
+  EXPECT_EQ(parsed.getBitsPerSample(), 16u);
+  EXPECT_EQ(parsed.getChannelOrder(), ChannelOrder::RGB);
+  EXPECT_EQ(parsed.getEndianess(), Endianness::Little);
+  EXPECT_EQ(parsed.getDataLayout(), DataLayout::Packed);
+  EXPECT_TRUE(parsed.hasAlpha());
+}
+
+TEST(PixelFormatRGBTest, testFloat32PlanarRoundtrip)
+{
+  const PixelFormatRGB format(32,
+                              DataLayout::Planar,
+                              ChannelOrder::BGR,
+                              AlphaMode::None,
+                              Endianness::Little,
+                              SampleType::Float32);
+
+  const auto name = format.getName();
+  EXPECT_EQ(name, std::string("BGR 32bit planar FP32"));
+
+  const PixelFormatRGB parsed(name);
+  EXPECT_EQ(parsed.getSampleType(), SampleType::Float32);
+  EXPECT_EQ(parsed.getBitsPerSample(), 32u);
+  EXPECT_EQ(parsed.getChannelOrder(), ChannelOrder::BGR);
+  EXPECT_EQ(parsed.getDataLayout(), DataLayout::Planar);
+  EXPECT_FALSE(parsed.hasAlpha());
+}
+
+TEST(PixelFormatRGBTest, testAlphaIgnoredRoundtrip)
+{
+  const PixelFormatRGB format(16,
+                              DataLayout::Packed,
+                              ChannelOrder::RGB,
+                              AlphaMode::Last,
+                              Endianness::Little,
+                              SampleType::BFloat16,
+                              true);
+
+  EXPECT_FALSE(format.hasAlpha());
+  EXPECT_TRUE(format.isAlphaIgnored());
+  EXPECT_EQ(format.nrChannels(), 4u);
+
+  const auto name = format.getName();
+  EXPECT_EQ(name, std::string("RGBX 16bit BF16"));
+
+  const PixelFormatRGB parsed(name);
+  EXPECT_FALSE(parsed.hasAlpha());
+  EXPECT_TRUE(parsed.isAlphaIgnored());
+  EXPECT_EQ(parsed.getSampleType(), SampleType::BFloat16);
+  EXPECT_EQ(parsed.nrChannels(), 4u);
+}
+
 } // namespace video::rgb::test

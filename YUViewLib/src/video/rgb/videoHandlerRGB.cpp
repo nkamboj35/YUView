@@ -41,6 +41,7 @@
 #include <video/rgb/PixelFormatRGBGuess.h>
 #include <video/rgb/videoHandlerRGBCustomFormatDialog.h>
 
+#include <QDoubleSpinBox>
 #include <QPainter>
 #include <QtGlobal>
 
@@ -120,7 +121,83 @@ std::vector<rgb::PixelFormatRGB> videoHandlerRGB::formatPresetList = {
     PixelFormatRGB(8, DataLayout::Packed, ChannelOrder::RGB, AlphaMode::First),
     PixelFormatRGB(8, DataLayout::Packed, ChannelOrder::BRG),
     PixelFormatRGB(10, DataLayout::Packed, ChannelOrder::BRG),
-    PixelFormatRGB(10, DataLayout::Planar, ChannelOrder::RGB)};
+    PixelFormatRGB(10, DataLayout::Planar, ChannelOrder::RGB),
+  PixelFormatRGB(16,
+           DataLayout::Packed,
+           ChannelOrder::RGB,
+           AlphaMode::Last,
+           Endianness::Little,
+           SampleType::BFloat16),
+  PixelFormatRGB(16,
+           DataLayout::Packed,
+           ChannelOrder::RGB,
+           AlphaMode::Last,
+           Endianness::Little,
+           SampleType::BFloat16,
+           true),
+  PixelFormatRGB(16,
+           DataLayout::Packed,
+           ChannelOrder::BGR,
+           AlphaMode::Last,
+           Endianness::Little,
+           SampleType::BFloat16),
+  PixelFormatRGB(16,
+           DataLayout::Packed,
+           ChannelOrder::BGR,
+           AlphaMode::Last,
+           Endianness::Little,
+           SampleType::BFloat16,
+           true),
+  PixelFormatRGB(16,
+           DataLayout::Packed,
+           ChannelOrder::RGB,
+           AlphaMode::Last,
+           Endianness::Little,
+           SampleType::Float16),
+  PixelFormatRGB(16,
+           DataLayout::Packed,
+           ChannelOrder::RGB,
+           AlphaMode::Last,
+           Endianness::Little,
+           SampleType::Float16,
+           true),
+  PixelFormatRGB(16,
+           DataLayout::Packed,
+           ChannelOrder::BGR,
+           AlphaMode::Last,
+           Endianness::Little,
+           SampleType::Float16),
+  PixelFormatRGB(16,
+           DataLayout::Packed,
+           ChannelOrder::BGR,
+           AlphaMode::Last,
+           Endianness::Little,
+           SampleType::Float16,
+           true),
+  PixelFormatRGB(32,
+           DataLayout::Packed,
+           ChannelOrder::RGB,
+           AlphaMode::None,
+           Endianness::Little,
+           SampleType::Float32),
+  PixelFormatRGB(32,
+           DataLayout::Packed,
+           ChannelOrder::BGR,
+           AlphaMode::None,
+           Endianness::Little,
+           SampleType::Float32),
+  PixelFormatRGB(32,
+           DataLayout::Planar,
+           ChannelOrder::RGB,
+           AlphaMode::None,
+           Endianness::Little,
+           SampleType::Float32),
+  PixelFormatRGB(32,
+           DataLayout::Planar,
+           ChannelOrder::BGR,
+           AlphaMode::None,
+           Endianness::Little,
+           SampleType::Float32)};
 
 videoHandlerRGB::videoHandlerRGB() : videoHandler()
 {
@@ -273,14 +350,38 @@ QLayout *videoHandlerRGB::createVideoHandlerControls(bool isSizeFixed)
           vectorIndexOf(videoHandlerRGB::formatPresetList, this->srcPixelFormat))
     ui.rgbFormatComboBox->setCurrentIndex(static_cast<int>(*presetIndex));
 
+  const auto configureScaleSpinBox = [](QDoubleSpinBox *spinBox) {
+    spinBox->setDecimals(4);
+    spinBox->setSingleStep(0.1);
+    spinBox->setMinimum(0.0);
+    spinBox->setMaximum(1000.0);
+  };
+  const auto configureMeanSpinBox = [](QDoubleSpinBox *spinBox) {
+    spinBox->setDecimals(4);
+    spinBox->setSingleStep(0.1);
+    spinBox->setMinimum(-1000.0);
+    spinBox->setMaximum(1000.0);
+  };
+
+  configureScaleSpinBox(ui.RScaleSpinBox);
+  configureScaleSpinBox(ui.GScaleSpinBox);
+  configureScaleSpinBox(ui.BScaleSpinBox);
+  configureScaleSpinBox(ui.AScaleSpinBox);
+
+  configureMeanSpinBox(ui.RMeanSpinBox);
+  configureMeanSpinBox(ui.GMeanSpinBox);
+  configureMeanSpinBox(ui.BMeanSpinBox);
+  configureMeanSpinBox(ui.AMeanSpinBox);
+
   ui.RScaleSpinBox->setValue(componentScale[0]);
-  ui.RScaleSpinBox->setMaximum(1000);
   ui.GScaleSpinBox->setValue(componentScale[1]);
-  ui.GScaleSpinBox->setMaximum(1000);
   ui.BScaleSpinBox->setValue(componentScale[2]);
-  ui.BScaleSpinBox->setMaximum(1000);
   ui.AScaleSpinBox->setValue(componentScale[3]);
-  ui.AScaleSpinBox->setMaximum(1000);
+
+  ui.RMeanSpinBox->setValue(componentMean[0]);
+  ui.GMeanSpinBox->setValue(componentMean[1]);
+  ui.BMeanSpinBox->setValue(componentMean[2]);
+  ui.AMeanSpinBox->setValue(componentMean[3]);
 
   ui.RInvertCheckBox->setChecked(this->componentInvert[0]);
   ui.GInvertCheckBox->setChecked(this->componentInvert[1]);
@@ -299,7 +400,12 @@ QLayout *videoHandlerRGB::createVideoHandlerControls(bool isSizeFixed)
           &videoHandlerRGB::slotDisplayOptionsChanged);
   for (auto spinBox : {ui.RScaleSpinBox, ui.GScaleSpinBox, ui.BScaleSpinBox, ui.AScaleSpinBox})
     connect(spinBox,
-            QOverload<int>::of(&QSpinBox::valueChanged),
+            QOverload<double>::of(&QDoubleSpinBox::valueChanged),
+            this,
+            &videoHandlerRGB::slotDisplayOptionsChanged);
+  for (auto spinBox : {ui.RMeanSpinBox, ui.GMeanSpinBox, ui.BMeanSpinBox, ui.AMeanSpinBox})
+    connect(spinBox,
+            QOverload<double>::of(&QDoubleSpinBox::valueChanged),
             this,
             &videoHandlerRGB::slotDisplayOptionsChanged);
   for (auto checkBox : {ui.RInvertCheckBox,
@@ -333,6 +439,10 @@ void videoHandlerRGB::slotDisplayOptionsChanged()
   componentScale[1]  = ui.GScaleSpinBox->value();
   componentScale[2]  = ui.BScaleSpinBox->value();
   componentScale[3]  = ui.AScaleSpinBox->value();
+  componentMean[0]   = ui.RMeanSpinBox->value();
+  componentMean[1]   = ui.GMeanSpinBox->value();
+  componentMean[2]   = ui.BMeanSpinBox->value();
+  componentMean[3]   = ui.AMeanSpinBox->value();
   componentInvert[0] = ui.RInvertCheckBox->isChecked();
   componentInvert[1] = ui.GInvertCheckBox->isChecked();
   componentInvert[2] = ui.BInvertCheckBox->isChecked();
@@ -359,6 +469,10 @@ void videoHandlerRGB::updateControlsForNewPixelFormat()
   ui.GScaleSpinBox->setEnabled(valid);
   ui.BScaleSpinBox->setEnabled(valid);
   ui.AScaleSpinBox->setEnabled(validAndAlpha);
+  ui.RMeanSpinBox->setEnabled(valid);
+  ui.GMeanSpinBox->setEnabled(valid);
+  ui.BMeanSpinBox->setEnabled(valid);
+  ui.AMeanSpinBox->setEnabled(validAndAlpha);
   ui.RInvertCheckBox->setEnabled(valid);
   ui.GInvertCheckBox->setEnabled(valid);
   ui.BInvertCheckBox->setEnabled(valid);
@@ -488,10 +602,17 @@ void videoHandlerRGB::savePlaylist(YUViewDomElement &element) const
   element.appendProperiteChild("componentShow",
                                ComponentShowMapper.getName(this->componentDisplayMode));
 
-  element.appendProperiteChild("scale.R", QString::number(this->componentScale[0]));
-  element.appendProperiteChild("scale.G", QString::number(this->componentScale[1]));
-  element.appendProperiteChild("scale.B", QString::number(this->componentScale[2]));
-  element.appendProperiteChild("scale.A", QString::number(this->componentScale[3]));
+  auto toString = [](double value) { return QString::number(value, 'g', 12); };
+
+  element.appendProperiteChild("scale.R", toString(this->componentScale[0]));
+  element.appendProperiteChild("scale.G", toString(this->componentScale[1]));
+  element.appendProperiteChild("scale.B", toString(this->componentScale[2]));
+  element.appendProperiteChild("scale.A", toString(this->componentScale[3]));
+
+  element.appendProperiteChild("mean.R", toString(this->componentMean[0]));
+  element.appendProperiteChild("mean.G", toString(this->componentMean[1]));
+  element.appendProperiteChild("mean.B", toString(this->componentMean[2]));
+  element.appendProperiteChild("mean.A", toString(this->componentMean[3]));
 
   element.appendProperiteChild("invert.R", to_string(this->componentInvert[0]));
   element.appendProperiteChild("invert.G", to_string(this->componentInvert[1]));
@@ -513,16 +634,29 @@ void videoHandlerRGB::loadPlaylist(const YUViewDomElement &element)
 
   auto scaleR = element.findChildValue("scale.R");
   if (!scaleR.isEmpty())
-    this->componentScale[0] = scaleR.toInt();
+    this->componentScale[0] = scaleR.toDouble();
   auto scaleG = element.findChildValue("scale.G");
   if (!scaleG.isEmpty())
-    this->componentScale[1] = scaleG.toInt();
+    this->componentScale[1] = scaleG.toDouble();
   auto scaleB = element.findChildValue("scale.B");
   if (!scaleB.isEmpty())
-    this->componentScale[2] = scaleB.toInt();
+    this->componentScale[2] = scaleB.toDouble();
   auto scaleA = element.findChildValue("scale.A");
   if (!scaleA.isEmpty())
-    this->componentScale[3] = scaleA.toInt();
+    this->componentScale[3] = scaleA.toDouble();
+
+  auto meanR = element.findChildValue("mean.R");
+  if (!meanR.isEmpty())
+    this->componentMean[0] = meanR.toDouble();
+  auto meanG = element.findChildValue("mean.G");
+  if (!meanG.isEmpty())
+    this->componentMean[1] = meanG.toDouble();
+  auto meanB = element.findChildValue("mean.B");
+  if (!meanB.isEmpty())
+    this->componentMean[2] = meanB.toDouble();
+  auto meanA = element.findChildValue("mean.A");
+  if (!meanA.isEmpty())
+    this->componentMean[3] = meanA.toDouble();
 
   this->componentInvert[0] = (element.findChildValue("invert.R") == "True");
   this->componentInvert[1] = (element.findChildValue("invert.G") == "True");
@@ -679,6 +813,7 @@ void videoHandlerRGB::convertSourceToRGBA32Bit(const QByteArray &sourceBuffer,
                           this->frameSize,
                           this->componentInvert,
                           this->componentScale,
+                          this->componentMean,
                           this->limitedRange,
                           convertAlpha,
                           premultiplyAlpha);
@@ -707,6 +842,7 @@ void videoHandlerRGB::convertSourceToRGBA32Bit(const QByteArray &sourceBuffer,
                                            this->frameSize,
                                            displayChannel,
                                            scale,
+                                           this->componentMean[displayIndex],
                                            invert,
                                            this->limitedRange);
   }
@@ -779,7 +915,7 @@ void videoHandlerRGB::drawPixelValues(QPainter     *painter,
   // This QRect has the size of one pixel and is moved on top of each pixel to draw the text
   QRect pixelRect;
   pixelRect.setSize(QSize(zoomFactor, zoomFactor));
-  const unsigned drawWhitLevel = 1 << (srcPixelFormat.getBitsPerSample() - 1);
+  const unsigned drawWhitLevel = 1u << (srcPixelFormat.getBitsPerSample() - 1);
   for (int x = xMin; x <= xMax; x++)
   {
     for (int y = yMin; y <= yMax; y++)
@@ -865,6 +1001,15 @@ QImage videoHandlerRGB::calculateDifference(FrameHandler    *item2,
 
   if (srcPixelFormat.getBitsPerSample() != rgbItem2->srcPixelFormat.getBitsPerSample())
     // The two items have different bit depths. Compare RGB 888 values instead.
+    return videoHandler::calculateDifference(item2,
+                                             frameIdxItem0,
+                                             frameIdxItem1,
+                                             differenceInfoList,
+                                             amplificationFactor,
+                                             markDifference);
+
+  if (srcPixelFormat.getSampleType() != SampleType::UnsignedInteger &&
+      srcPixelFormat.getSampleType() != SampleType::SignedInteger)
     return videoHandler::calculateDifference(item2,
                                              frameIdxItem0,
                                              frameIdxItem1,

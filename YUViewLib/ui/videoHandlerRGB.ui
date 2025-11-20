@@ -45,171 +45,347 @@
        <property name="title">
         <string>RGB Display</string>
        </property>
-       <layout class="QGridLayout" name="gridLayout" columnstretch="0,0,0">
-        <item row="0" column="0">
-         <widget class="QLabel" name="labelComponent">
-          <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Which of the RGB components should be displayed? You can choose all or one of the three color planes individually.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-          </property>
-          <property name="text">
-           <string>Components</string>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="2">
-         <widget class="QCheckBox" name="BInvertCheckBox">
-          <property name="toolTip">
-           <string>Invert every value of the blue channel</string>
-          </property>
-          <property name="text">
-           <string>Invert</string>
-          </property>
-         </widget>
-        </item>
-        <item row="5" column="1">
-         <widget class="QCheckBox" name="limitedRangeCheckBox">
-          <property name="toolTip">
-           <string>Select this if the input values are using the limited MPEG range of values.</string>
-          </property>
-          <property name="whatsThis">
-           <string>Select this if the input values are using the limited MPEG range of values.</string>
-          </property>
-          <property name="text">
-           <string/>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="0">
-         <widget class="QLabel" name="labelScaleG">
-          <property name="toolTip">
-           <string>Scale every value in the green channel with this factor</string>
-          </property>
-          <property name="text">
-           <string>Scale G</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="0">
-         <widget class="QLabel" name="labelScaleR">
-          <property name="toolTip">
-           <string>Scale every value in the red channel with this factor</string>
-          </property>
-          <property name="text">
-           <string>Scale R</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="2">
-         <widget class="QCheckBox" name="RInvertCheckBox">
-          <property name="toolTip">
-           <string>Invert every value of the red channel</string>
-          </property>
-          <property name="text">
-           <string>Invert</string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="2">
-         <widget class="QCheckBox" name="GInvertCheckBox">
-          <property name="toolTip">
-           <string>Invert every value of the green channel</string>
-          </property>
-          <property name="text">
-           <string>Invert</string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="1">
-         <widget class="QSpinBox" name="GScaleSpinBox">
-          <property name="toolTip">
-           <string>Scale every value in the green channel with this factor</string>
-          </property>
-          <property name="minimum">
-           <number>0</number>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="1">
-         <widget class="QSpinBox" name="RScaleSpinBox">
-          <property name="toolTip">
-           <string>Scale every value in the red channel with this factor</string>
-          </property>
-          <property name="minimum">
-           <number>0</number>
-          </property>
-         </widget>
-        </item>
-        <item row="5" column="0">
-         <widget class="QLabel" name="labelLimitedRange">
-          <property name="toolTip">
-           <string>Select this if the input values are using the limited MPEG range of values.</string>
-          </property>
-          <property name="whatsThis">
-           <string>Select this if the input values are using the limited MPEG range of values.</string>
-          </property>
-          <property name="text">
-           <string>Limited Range</string>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="1">
-         <widget class="QSpinBox" name="BScaleSpinBox">
-          <property name="toolTip">
-           <string>Scale every value in the blue channel with this factor</string>
-          </property>
-          <property name="minimum">
-           <number>0</number>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="1" colspan="2">
-         <widget class="QComboBox" name="colorComponentsComboBox">
-          <property name="toolTip">
-           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Which of the RGB components should be displayed? You can choose all or one of the three color planes individually.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="0">
-         <widget class="QLabel" name="labelScaleB">
-          <property name="toolTip">
-           <string>Scale every value in the blue channel with this factor</string>
-          </property>
-          <property name="text">
-           <string>Scale B</string>
-          </property>
-         </widget>
-        </item>
-        <item row="4" column="0">
-         <widget class="QLabel" name="labelScaleA">
-          <property name="toolTip">
-           <string>Scale every value in the alpha channel with this factor</string>
-          </property>
-          <property name="text">
-           <string>Scale A</string>
-          </property>
-         </widget>
-        </item>
-        <item row="4" column="1">
-         <widget class="QSpinBox" name="AScaleSpinBox">
-          <property name="toolTip">
-           <string>Scale every value in the alpha channel with this factor</string>
-          </property>
-          <property name="value">
-           <number>1</number>
-          </property>
-         </widget>
-        </item>
-        <item row="4" column="2">
-         <widget class="QCheckBox" name="AInvertCheckBox">
-          <property name="toolTip">
-           <string>Invert every value of the alpha channel</string>
-          </property>
-          <property name="text">
-           <string>Invert</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
+    <layout class="QGridLayout" name="gridLayout" columnstretch="0,0,0">
+     <item row="0" column="0">
+      <widget class="QLabel" name="labelComponent">
+       <property name="toolTip">
+        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Which of the RGB components should be displayed? You can choose all or one of the three color planes individually.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+       </property>
+       <property name="text">
+        <string>Components</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1" colspan="2">
+      <widget class="QComboBox" name="colorComponentsComboBox">
+       <property name="toolTip">
+        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Which of the RGB components should be displayed? You can choose all or one of the three color planes individually.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="labelScaleR">
+       <property name="toolTip">
+        <string>Scale every value in the red channel with this factor</string>
+       </property>
+       <property name="text">
+        <string>Scale R</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QDoubleSpinBox" name="RScaleSpinBox">
+       <property name="toolTip">
+        <string>Scale every value in the red channel with this factor</string>
+       </property>
+       <property name="decimals">
+        <number>4</number>
+       </property>
+       <property name="singleStep">
+        <double>0.100000000000000</double>
+       </property>
+       <property name="minimum">
+        <double>0.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>1000.000000000000000</double>
+       </property>
+       <property name="value">
+        <double>1.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="2">
+      <widget class="QCheckBox" name="RInvertCheckBox">
+       <property name="toolTip">
+        <string>Invert every value of the red channel</string>
+       </property>
+       <property name="text">
+        <string>Invert</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="labelMeanR">
+       <property name="toolTip">
+        <string>Subtract this mean from the red channel before scaling</string>
+       </property>
+       <property name="text">
+        <string>Mean R</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1" colspan="2">
+      <widget class="QDoubleSpinBox" name="RMeanSpinBox">
+       <property name="toolTip">
+        <string>Subtract this mean from the red channel before scaling</string>
+       </property>
+       <property name="decimals">
+        <number>4</number>
+       </property>
+       <property name="singleStep">
+        <double>0.100000000000000</double>
+       </property>
+       <property name="minimum">
+        <double>-1000.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>1000.000000000000000</double>
+       </property>
+       <property name="value">
+        <double>0.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="0">
+      <widget class="QLabel" name="labelScaleG">
+       <property name="toolTip">
+        <string>Scale every value in the green channel with this factor</string>
+       </property>
+       <property name="text">
+        <string>Scale G</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <widget class="QDoubleSpinBox" name="GScaleSpinBox">
+       <property name="toolTip">
+        <string>Scale every value in the green channel with this factor</string>
+       </property>
+       <property name="decimals">
+        <number>4</number>
+       </property>
+       <property name="singleStep">
+        <double>0.100000000000000</double>
+       </property>
+       <property name="minimum">
+        <double>0.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>1000.000000000000000</double>
+       </property>
+       <property name="value">
+        <double>1.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="2">
+      <widget class="QCheckBox" name="GInvertCheckBox">
+       <property name="toolTip">
+        <string>Invert every value of the green channel</string>
+       </property>
+       <property name="text">
+        <string>Invert</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="0">
+      <widget class="QLabel" name="labelMeanG">
+       <property name="toolTip">
+        <string>Subtract this mean from the green channel before scaling</string>
+       </property>
+       <property name="text">
+        <string>Mean G</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1" colspan="2">
+      <widget class="QDoubleSpinBox" name="GMeanSpinBox">
+       <property name="toolTip">
+        <string>Subtract this mean from the green channel before scaling</string>
+       </property>
+       <property name="decimals">
+        <number>4</number>
+       </property>
+       <property name="singleStep">
+        <double>0.100000000000000</double>
+       </property>
+       <property name="minimum">
+        <double>-1000.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>1000.000000000000000</double>
+       </property>
+       <property name="value">
+        <double>0.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="0">
+      <widget class="QLabel" name="labelScaleB">
+       <property name="toolTip">
+        <string>Scale every value in the blue channel with this factor</string>
+       </property>
+       <property name="text">
+        <string>Scale B</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="1">
+      <widget class="QDoubleSpinBox" name="BScaleSpinBox">
+       <property name="toolTip">
+        <string>Scale every value in the blue channel with this factor</string>
+       </property>
+       <property name="decimals">
+        <number>4</number>
+       </property>
+       <property name="singleStep">
+        <double>0.100000000000000</double>
+       </property>
+       <property name="minimum">
+        <double>0.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>1000.000000000000000</double>
+       </property>
+       <property name="value">
+        <double>1.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="2">
+      <widget class="QCheckBox" name="BInvertCheckBox">
+       <property name="toolTip">
+        <string>Invert every value of the blue channel</string>
+       </property>
+       <property name="text">
+        <string>Invert</string>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="0">
+      <widget class="QLabel" name="labelMeanB">
+       <property name="toolTip">
+        <string>Subtract this mean from the blue channel before scaling</string>
+       </property>
+       <property name="text">
+        <string>Mean B</string>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="1" colspan="2">
+      <widget class="QDoubleSpinBox" name="BMeanSpinBox">
+       <property name="toolTip">
+        <string>Subtract this mean from the blue channel before scaling</string>
+       </property>
+       <property name="decimals">
+        <number>4</number>
+       </property>
+       <property name="singleStep">
+        <double>0.100000000000000</double>
+       </property>
+       <property name="minimum">
+        <double>-1000.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>1000.000000000000000</double>
+       </property>
+       <property name="value">
+        <double>0.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="0">
+      <widget class="QLabel" name="labelScaleA">
+       <property name="toolTip">
+        <string>Scale every value in the alpha channel with this factor</string>
+       </property>
+       <property name="text">
+        <string>Scale A</string>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="1">
+      <widget class="QDoubleSpinBox" name="AScaleSpinBox">
+       <property name="toolTip">
+        <string>Scale every value in the alpha channel with this factor</string>
+       </property>
+       <property name="decimals">
+        <number>4</number>
+       </property>
+       <property name="singleStep">
+        <double>0.100000000000000</double>
+       </property>
+       <property name="minimum">
+        <double>0.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>1000.000000000000000</double>
+       </property>
+       <property name="value">
+        <double>1.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="2">
+      <widget class="QCheckBox" name="AInvertCheckBox">
+       <property name="toolTip">
+        <string>Invert every value of the alpha channel</string>
+       </property>
+       <property name="text">
+        <string>Invert</string>
+       </property>
+      </widget>
+     </item>
+     <item row="8" column="0">
+      <widget class="QLabel" name="labelMeanA">
+       <property name="toolTip">
+        <string>Subtract this mean from the alpha channel before scaling</string>
+       </property>
+       <property name="text">
+        <string>Mean A</string>
+       </property>
+      </widget>
+     </item>
+     <item row="8" column="1" colspan="2">
+      <widget class="QDoubleSpinBox" name="AMeanSpinBox">
+       <property name="toolTip">
+        <string>Subtract this mean from the alpha channel before scaling</string>
+       </property>
+       <property name="decimals">
+        <number>4</number>
+       </property>
+       <property name="singleStep">
+        <double>0.100000000000000</double>
+       </property>
+       <property name="minimum">
+        <double>-1000.000000000000000</double>
+       </property>
+       <property name="maximum">
+        <double>1000.000000000000000</double>
+       </property>
+       <property name="value">
+        <double>0.000000000000000</double>
+       </property>
+      </widget>
+     </item>
+     <item row="9" column="0">
+      <widget class="QLabel" name="labelLimitedRange">
+       <property name="toolTip">
+        <string>Select this if the input values are using the limited MPEG range of values.</string>
+       </property>
+       <property name="whatsThis">
+        <string>Select this if the input values are using the limited MPEG range of values.</string>
+       </property>
+       <property name="text">
+        <string>Limited Range</string>
+       </property>
+      </widget>
+     </item>
+     <item row="9" column="1">
+      <widget class="QCheckBox" name="limitedRangeCheckBox">
+       <property name="toolTip">
+        <string>Select this if the input values are using the limited MPEG range of values.</string>
+       </property>
+       <property name="whatsThis">
+        <string>Select this if the input values are using the limited MPEG range of values.</string>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+      </widget>
+     </item>
+    </layout>
       </widget>
      </item>
     </layout>
@@ -221,10 +397,17 @@
   <tabstop>colorComponentsComboBox</tabstop>
   <tabstop>RScaleSpinBox</tabstop>
   <tabstop>RInvertCheckBox</tabstop>
+    <tabstop>RMeanSpinBox</tabstop>
   <tabstop>GScaleSpinBox</tabstop>
   <tabstop>GInvertCheckBox</tabstop>
+    <tabstop>GMeanSpinBox</tabstop>
   <tabstop>BScaleSpinBox</tabstop>
   <tabstop>BInvertCheckBox</tabstop>
+    <tabstop>BMeanSpinBox</tabstop>
+    <tabstop>AScaleSpinBox</tabstop>
+    <tabstop>AInvertCheckBox</tabstop>
+    <tabstop>AMeanSpinBox</tabstop>
+    <tabstop>limitedRangeCheckBox</tabstop>
  </tabstops>
  <resources/>
  <connections/>

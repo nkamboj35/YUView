@@ -48,3 +48,24 @@ If none of these apply to you, you can easily [build YUView yourself](https://gi
 ## Building
 
 Compiling YUView from source is easy! We use qmake for the project so on all supported platforms you just have to install qt and run `qmake` and `make` to build YUView. There are no further dependent libraries. Alternatively, you can use the QTCreator if you prefer a GUI. More help on building YUView can be found in the [wiki](https://github.com/IENT/YUView/wiki/Compile-YUView).
+
+## New Features & Getting Started (Custom Build)
+
+### Floating Point Format Support
+This build includes extended support for floating-point video formats, specifically adding **Half Precision (FP16)**.
+
+**Supported Formats:**
+*   **FP16 (Half Precision):** IEEE 754 16-bit floating point.
+*   **BF16 (Brain Float):** 16-bit Brain Floating Point.
+*   **FP32 (Single Precision):** IEEE 754 32-bit floating point.
+
+**Usage:**
+To automatically detect these formats, include the corresponding tag in your filename (case-insensitive):
+*   Use `fp16` for Half Precision (e.g., `sequence_fp16.rgb`, `test.fp16`).
+*   Use `bf16` for Brain Float (e.g., `data.bf16`).
+*   Use `fp32` for Single Precision (e.g., `render.fp32`).
+
+You can also specify `planar` or `packed` in the filename to hint the data layout.
+
+### Debug Logging
+For troubleshooting, this build automatically generates a log file named `yuview_log.txt` in the same directory as the executable. This file captures all application debug output.

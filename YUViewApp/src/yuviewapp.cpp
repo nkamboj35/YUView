@@ -31,12 +31,53 @@
 */
 
 #include <QCoreApplication>
+#include <QtGlobal>
+#include <QDebug>
 
 #include <common/Typedef.h>
 #include <ui/YUViewApplication.h>
 
+#include <QFile>
+#include <QTextStream>
+#include <QDateTime>
+#include <QMutex>
+
+void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QString &msg)
+{
+  static QMutex mutex;
+  QMutexLocker lock(&mutex);
+
+  QFile file("yuview_log.txt");
+  if (!file.open(QIODevice::WriteOnly | QIODevice::Append))
+    return;
+
+  QTextStream out(&file);
+  out << QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss.zzz ");
+  switch (type)
+  {
+  case QtDebugMsg:
+    out << "Debug: ";
+    break;
+  case QtInfoMsg:
+    out << "Info: ";
+    break;
+  case QtWarningMsg:
+    out << "Warning: ";
+    break;
+  case QtCriticalMsg:
+    out << "Critical: ";
+    break;
+  case QtFatalMsg:
+    out << "Fatal: ";
+    break;
+  }
+  out << msg << "\n";
+}
+
 int main(int argc, char *argv[])
 {
+  qInstallMessageHandler(myMessageOutput);
+
 #if QT_VERSION >= QT_VERSION_CHECK(5, 6, 0) && QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
   QCoreApplication::setAttribute(Qt::AA_EnableHighDpiScaling); // DPI support
   QCoreApplication::setAttribute(Qt::AA_UseHighDpiPixmaps); // DPI support

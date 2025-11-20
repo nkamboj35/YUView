@@ -78,6 +78,9 @@ constexpr auto BytesNoAlpha   = 1920u * 1080 * 12u * 3u; // 12 frames RGB
 constexpr auto NotEnoughBytes = 22u;
 constexpr auto UnfittingBytes = 1920u * 1080u * 5u;
 constexpr auto BytesBayerFile = 512u * 768u * 4u * 12u; // 12 frames raw bayer
+constexpr auto BytesBF16      = 640u * 480u * 4u * 2u;  // single frame RGBX BF16
+constexpr auto BytesFP32Packed = 320u * 240u * 4u * 4u; // single frame RGBA FP32
+constexpr auto BytesFP32Planar = 320u * 240u * 3u * 4u; // single frame planar RGB FP32
 
 INSTANTIATE_TEST_SUITE_P(
     VideoRGBTest,
@@ -215,9 +218,58 @@ INSTANTIATE_TEST_SUITE_P(
         TestParameters({FileInfoForGuess({"something_1920x1080.bgr", "", BytesNoAlpha}),
                         PixelFormatRGB(8, DataLayout::Packed, ChannelOrder::BGR)}),
 
+        // Bit depth upgrade from separate generic indicator ("_10b_") combined with rgb/bgr
+        // indicator that itself has no digits
+        TestParameters({FileInfoForGuess({"out_640x640_10b_rgb.rgb", "", 640u * 640u * 10u/8u * 3u}),
+                PixelFormatRGB(10, DataLayout::Packed, ChannelOrder::RGB)}),
+        TestParameters({FileInfoForGuess({"out_640x640_10b_bgr.bgr", "", 640u * 640u * 10u/8u * 3u}),
+                PixelFormatRGB(10, DataLayout::Packed, ChannelOrder::BGR)}),
+
         // CMYK file
         TestParameters({FileInfoForGuess({"something_512x768.cmyk", "", BytesBayerFile}),
-                        PixelFormatRGB(8, DataLayout::Packed, ChannelOrder::RGB, AlphaMode::Last)})
+                PixelFormatRGB(8, DataLayout::Packed, ChannelOrder::RGB, AlphaMode::Last)}),
+
+        // Float sample types
+        TestParameters({FileInfoForGuess({"frame_640x480_rgbx_bf16.rgb", "", BytesBF16}),
+                PixelFormatRGB(16,
+                           DataLayout::Packed,
+                           ChannelOrder::RGB,
+                           AlphaMode::Last,
+                           Endianness::Little,
+                           SampleType::BFloat16,
+                           true)}),
+
+        // Float32 packed and planar variants
+        TestParameters({FileInfoForGuess({"clip_320x240_rgbx_fp32.rgb", "", BytesFP32Packed}),
+            PixelFormatRGB(32,
+                   DataLayout::Packed,
+                   ChannelOrder::RGB,
+                   AlphaMode::Last,
+               Endianness::Little,
+               SampleType::Float32,
+               true)}),
+        TestParameters({FileInfoForGuess({"clip_320x240_bgrx_fp32.rgb", "", BytesFP32Packed}),
+            PixelFormatRGB(32,
+                   DataLayout::Packed,
+                   ChannelOrder::BGR,
+                   AlphaMode::Last,
+               Endianness::Little,
+               SampleType::Float32,
+               true)}),
+        TestParameters({FileInfoForGuess({"clip_320x240_rgb_fp32_planar.bin", "", BytesFP32Planar}),
+            PixelFormatRGB(32,
+                   DataLayout::Planar,
+                   ChannelOrder::RGB,
+                   AlphaMode::None,
+                   Endianness::Little,
+                   SampleType::Float32)}),
+        TestParameters({FileInfoForGuess({"clip_320x240_bgr_fp32_planar.bin", "", BytesFP32Planar}),
+            PixelFormatRGB(32,
+                   DataLayout::Planar,
+                   ChannelOrder::BGR,
+                   AlphaMode::None,
+                   Endianness::Little,
+                   SampleType::Float32)})
 
             ),
     getTestName);

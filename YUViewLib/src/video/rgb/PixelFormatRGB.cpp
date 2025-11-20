@@ -32,6 +32,10 @@
 
 #include "PixelFormatRGB.h"
 
+#include <algorithm>
+#include <cctype>
+#include <string>
+
 // Activate this if you want to know when which buffer is loaded/converted to image and so on.
 #define RGBPIXELFORMAT_DEBUG 0
 #if RGBPIXELFORMAT_DEBUG && !NDEBUG
@@ -48,9 +52,12 @@ PixelFormatRGB::PixelFormatRGB(unsigned     bitsPerSample,
                                DataLayout   dataLayout,
                                ChannelOrder channelOrder,
                                AlphaMode    alphaMode,
-                               Endianness   endianness)
+                               Endianness   endianness,
+                               SampleType   sampleType,
+                               bool         alphaIgnored)
     : bitsPerSample(bitsPerSample), dataLayout(dataLayout), channelOrder(channelOrder),
-      alphaMode(alphaMode), endianness(endianness)
+      alphaMode(alphaMode), endianness(endianness), sampleType(sampleType),
+      alphaChannelIgnored(alphaIgnored)
 {
 }
 
@@ -58,16 +65,21 @@ PixelFormatRGB::PixelFormatRGB(const std::string &name)
 {
   if (name != "Unknown Pixel Format")
   {
+    this->sampleType = SampleType::UnsignedInteger;
     auto channelOrderString = name.substr(0, 3);
-    if (name[0] == 'a' || name[0] == 'A')
+    if (name.size() > 0 && (name[0] == 'a' || name[0] == 'A' || name[0] == 'x' || name[0] == 'X'))
     {
       this->alphaMode    = AlphaMode::First;
       channelOrderString = name.substr(1, 3);
+      if (name[0] == 'x' || name[0] == 'X')
+        this->alphaChannelIgnored = true;
     }
-    else if (name[3] == 'a' || name[3] == 'A')
+    else if (name.size() > 3 && (name[3] == 'a' || name[3] == 'A' || name[3] == 'x' || name[3] == 'X'))
     {
       this->alphaMode    = AlphaMode::Last;
       channelOrderString = name.substr(0, 3);
+      if (name[3] == 'x' || name[3] == 'X')
+        this->alphaChannelIgnored = true;
     }
     auto order = ChannelOrderMapper.getValue(channelOrderString);
     if (order)
@@ -80,12 +92,45 @@ PixelFormatRGB::PixelFormatRGB(const std::string &name)
       this->dataLayout = DataLayout::Planar;
     if (this->bitsPerSample > 8 && name.find("BE") != std::string::npos)
       this->endianness = Endianness::Big;
+
+    auto lowerName = name;
+    std::transform(lowerName.begin(),
+             lowerName.end(),
+             lowerName.begin(),
+             [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    if (lowerName.find("bf16") != std::string::npos)
+    {
+      this->sampleType = SampleType::BFloat16;
+      this->bitsPerSample = 16;
+    }
+    else if (lowerName.find("fp16") != std::string::npos)
+    {
+      this->sampleType = SampleType::Float16;
+      this->bitsPerSample = 16;
+    }
+    else if (lowerName.find("fp32") != std::string::npos)
+    {
+      this->sampleType = SampleType::Float32;
+      this->bitsPerSample = 32;
+    }
   }
 }
 
 bool PixelFormatRGB::isValid() const
 {
-  return this->bitsPerSample >= 8 && this->bitsPerSample <= 32;
+  switch (this->sampleType)
+  {
+  case SampleType::UnsignedInteger:
+  case SampleType::SignedInteger:
+    return this->bitsPerSample >= 8 && this->bitsPerSample <= 32;
+  case SampleType::Float16:
+  case SampleType::BFloat16:
+    return this->bitsPerSample == 16;
+  case SampleType::Float32:
+    return this->bitsPerSample == 32;
+  default:
+    return false;
+  }
 }
 
 unsigned PixelFormatRGB::nrChannels() const
@@ -95,7 +140,7 @@ unsigned PixelFormatRGB::nrChannels() const
 
 bool PixelFormatRGB::hasAlpha() const
 {
-  return this->alphaMode != AlphaMode::None;
+  return this->alphaMode != AlphaMode::None && !this->alphaChannelIgnored;
 }
 
 std::string PixelFormatRGB::getName() const
@@ -105,16 +150,22 @@ std::string PixelFormatRGB::getName() const
 
   std::string name;
   if (this->alphaMode == AlphaMode::First)
-    name += "A";
+    name += this->alphaChannelIgnored ? "X" : "A";
   name += ChannelOrderMapper.getName(this->channelOrder);
   if (this->alphaMode == AlphaMode::Last)
-    name += "A";
+    name += this->alphaChannelIgnored ? "X" : "A";
 
   name += " " + std::to_string(this->bitsPerSample) + "bit";
   if (this->dataLayout == DataLayout::Planar)
     name += " planar";
   if (this->bitsPerSample > 8 && this->endianness == Endianness::Big)
     name += " BE";
+
+  if (this->sampleType != SampleType::UnsignedInteger)
+  {
+    name += " ";
+    name += SampleTypeMapper.getName(this->sampleType);
+  }
 
   return name;
 }
