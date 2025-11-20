@@ -162,7 +162,8 @@ protected:
   PixelFormatRGB srcPixelFormat;
 
   // Parameters for the RGBA transformation (like scaling, invert)
-  int  componentScale[4]{1, 1, 1, 1};
+  double componentScale[4]{1.0, 1.0, 1.0, 1.0};
+  double componentMean[4]{0.0, 0.0, 0.0, 0.0};
   bool componentInvert[4]{};
   bool limitedRange{};
 

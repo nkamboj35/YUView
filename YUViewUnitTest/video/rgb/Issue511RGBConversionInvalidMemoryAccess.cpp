@@ -75,11 +75,12 @@ TEST(Issue511RGBConversionInvalidMemoryAccess, Test)
   std::vector<unsigned char> outputBuffer;
   outputBuffer.resize(NR_RGB_BYTES_OUTPUT);
 
-  const std::array<bool, 4> componentInvert  = {false};
-  const std::array<int, 4>  componentScale   = {1, 1, 1, 1};
-  const auto                limitedRange     = false;
-  const auto                convertAlpha     = false;
-  const auto                premultiplyAlpha = false;
+  const std::array<bool, 4>   componentInvert  = {false, false, false, false};
+  const std::array<double, 4> componentScale   = {1.0, 1.0, 1.0, 1.0};
+  const std::array<double, 4> componentMean    = {0.0, 0.0, 0.0, 0.0};
+  const auto                  limitedRange     = false;
+  const auto                  convertAlpha     = false;
+  const auto                  premultiplyAlpha = false;
 
   convertInputRGBToARGB(data,
                         format,
@@ -87,6 +88,7 @@ TEST(Issue511RGBConversionInvalidMemoryAccess, Test)
                         TEST_FRAME_SIZE,
                         componentInvert.data(),
                         componentScale.data(),
+                        componentMean.data(),
                         limitedRange,
                         convertAlpha,
                         premultiplyAlpha);

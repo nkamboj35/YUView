@@ -49,6 +49,27 @@ namespace
 
 const auto DEFAULT_PIXEL_FORMAT = PixelFormatRGB(8, DataLayout::Packed, ChannelOrder::RGB);
 
+void applySampleTypeFromTokens(PixelFormatRGB &format, const std::string &name)
+{
+  const auto nameLower = functions::toLower(name);
+
+  if (nameLower.find("bf16") != std::string::npos)
+  {
+    format.setSampleType(SampleType::BFloat16);
+    format.setBitsPerSample(16);
+  }
+  else if (nameLower.find("fp16") != std::string::npos)
+  {
+    format.setSampleType(SampleType::Float16);
+    format.setBitsPerSample(16);
+  }
+  else if (nameLower.find("fp32") != std::string::npos)
+  {
+    format.setSampleType(SampleType::Float32);
+    format.setBitsPerSample(32);
+  }
+}
+
 DataLayout findDataLayoutInName(const std::string &fileName)
 {
   std::string matcher = "(?:_|\\.|-)(packed|planar)(?:_|\\.|-)";
@@ -59,6 +80,19 @@ DataLayout findDataLayoutInName(const std::string &fileName)
   {
     auto match = sm.str(0).substr(1, 6);
     return match == "planar" ? DataLayout::Planar : DataLayout::Packed;
+  }
+
+  for (const auto &[order, name] : ChannelOrderMapper)
+  {
+    const auto lowerOrder = functions::toLower(name);
+    if (fileName.find(lowerOrder + "p") != std::string::npos)
+      return DataLayout::Planar;
+    if (fileName.find("a" + lowerOrder + "p") != std::string::npos)
+      return DataLayout::Planar;
+    if (fileName.find(lowerOrder + "ap") != std::string::npos)
+      return DataLayout::Planar;
+    if (fileName.find(lowerOrder + "xp") != std::string::npos)
+      return DataLayout::Planar;
   }
 
   return DataLayout::Packed;
@@ -114,9 +148,34 @@ std::optional<PixelFormatRGB> checkForPixelFormatIndicatorInName(
           if (alphaMode == AlphaMode::Last)
             name += "a";
           name += bitDepthString + endiannessName;
-          stringToMatchingFormat[name] =
-              PixelFormatRGB(bitDepth, DataLayout::Packed, channelOrder, alphaMode, endianness);
+          PixelFormatRGB formatMatchingString(
+              bitDepth, DataLayout::Packed, channelOrder, alphaMode, endianness);
+
+          stringToMatchingFormat[name] = formatMatchingString;
           matcher += name + "|";
+
+          if (alphaMode == AlphaMode::First)
+          {
+            auto nameWithX   = name;
+            auto formatWithX = formatMatchingString;
+            nameWithX[0]     = 'x';
+            formatWithX.setAlphaIgnored(true);
+            stringToMatchingFormat[nameWithX] = formatWithX;
+            matcher += nameWithX + "|";
+          }
+          else if (alphaMode == AlphaMode::Last)
+          {
+            auto nameWithX = name;
+            const auto pos = nameWithX.find('a');
+            if (pos != std::string::npos)
+            {
+              auto formatWithX = formatMatchingString;
+              nameWithX[pos]   = 'x';
+              formatWithX.setAlphaIgnored(true);
+              stringToMatchingFormat[nameWithX] = formatWithX;
+              matcher += nameWithX + "|";
+            }
+          }
         }
       }
     }
@@ -134,6 +193,7 @@ std::optional<PixelFormatRGB> checkForPixelFormatIndicatorInName(
   auto matchName = match.substr(1, match.size() - 2);
 
   auto format = stringToMatchingFormat[matchName];
+  applySampleTypeFromTokens(format, filename);
   if (doesPixelFormatMatchFileSize(format, frameSize, fileSize))
   {
     const auto dataLayout = findDataLayoutInName(filename);
@@ -154,6 +214,7 @@ std::optional<PixelFormatRGB> checkForPixelFormatIndicatorInFileExtension(
     if (fileExtension == ("." + functions::toLower(name)))
     {
       auto format = PixelFormatRGB(8, DataLayout::Packed, channelOrder);
+      applySampleTypeFromTokens(format, filename);
       if (doesPixelFormatMatchFileSize(format, frameSize, fileSize))
       {
         const auto dataLayout = findDataLayoutInName(filename);
@@ -172,7 +233,8 @@ std::optional<PixelFormatRGB> checkSpecificFileExtensions(
 
   if (fileExtension == ".cmyk")
   {
-    const auto format = PixelFormatRGB(8, DataLayout::Packed, ChannelOrder::RGB, AlphaMode::Last);
+    auto format = PixelFormatRGB(8, DataLayout::Packed, ChannelOrder::RGB, AlphaMode::Last);
+    applySampleTypeFromTokens(format, filename);
     if (doesPixelFormatMatchFileSize(format, frameSize, fileSize))
       return format;
   }
@@ -190,22 +252,86 @@ PixelFormatRGB guessPixelFormatFromSizeAndName(const GuessedFrameFormat &guessed
   const auto frameSize = *guessedFrameFormat.frameSize;
   const auto fileSize  = fileInfo.fileSize;
 
+  // Helper lambda: If we detected a format (default 8 bit) but also parsed a bit depth from the
+  // generic frame format guess (e.g. pattern '_10b_' or '10bit') and the format name did not
+  // already contain an explicit bit depth indicator (we only generated names with an appended
+  // number when we matched one explicitly), then apply that bit depth and verify file size.
+  auto applyGuessedBitDepthIfReasonable = [&](PixelFormatRGB &fmt, const std::string &nameLower) {
+    if (!guessedFrameFormat.bitDepth)
+      return; // Nothing to apply
+
+    // If bits already differ from 8 we must have matched an explicit pattern (e.g. rgb10) – keep it
+    if (fmt.getBitsPerSample() != 8)
+      return;
+
+    // Check whether the name token we matched already included a bit depth substring. We treat
+    // the presence of "rgb10", "rgb12", etc. (any channel order followed immediately by digits)
+    // as explicit specification. If not present but we have a standalone _10b_ (handled earlier
+    // by FrameFormatGuess) we upgrade here.
+    bool hasExplicitBitDepthToken = false;
+    for (const auto &[order, orderName] : ChannelOrderMapper)
+    {
+      const auto orderLower = functions::toLower(orderName);
+      for (auto bd : {8, 10, 12, 16, 32})
+      {
+        const auto pattern = orderLower + std::to_string(bd); // e.g. rgb10
+        if (nameLower.find(pattern) != std::string::npos)
+        {
+          hasExplicitBitDepthToken = true;
+          break;
+        }
+      }
+      if (hasExplicitBitDepthToken)
+        break;
+    }
+    if (hasExplicitBitDepthToken)
+      return;
+
+    fmt.setBitsPerSample(*guessedFrameFormat.bitDepth);
+    if (!doesPixelFormatMatchFileSize(fmt, frameSize, fileSize))
+    {
+      // Revert if file size no longer matches; leave at 8 bit default.
+      fmt.setBitsPerSample(8);
+    }
+  };
+
   if (const auto pixelFormat = checkSpecificFileExtensions(filename, frameSize, fileSize))
-    return *pixelFormat;
+  {
+    auto fmt = *pixelFormat;
+    applyGuessedBitDepthIfReasonable(fmt, filename);
+    return fmt;
+  }
 
   if (const auto pixelFormat = checkForPixelFormatIndicatorInName(filename, frameSize, fileSize))
-    return *pixelFormat;
+  {
+    auto fmt = *pixelFormat;
+    applyGuessedBitDepthIfReasonable(fmt, filename);
+    return fmt;
+  }
 
   if (const auto pixelFormat =
           checkForPixelFormatIndicatorInFileExtension(filename, frameSize, fileSize))
-    return *pixelFormat;
+  {
+    auto fmt = *pixelFormat;
+    applyGuessedBitDepthIfReasonable(fmt, filename);
+    return fmt;
+  }
 
   if (const auto pixelFormat = checkForPixelFormatIndicatorInName(
           functions::toLower(fileInfo.parentFolderName), frameSize, fileSize))
-    return *pixelFormat;
+  {
+    auto fmt = *pixelFormat;
+    applyGuessedBitDepthIfReasonable(fmt, functions::toLower(fileInfo.parentFolderName));
+    return fmt;
+  }
 
   if (guessedFrameFormat.frameSize)
-    return DEFAULT_PIXEL_FORMAT;
+  {
+    auto fmt = DEFAULT_PIXEL_FORMAT;
+    applySampleTypeFromTokens(fmt, filename);
+    applyGuessedBitDepthIfReasonable(fmt, filename);
+    return fmt;
+  }
 
   return {};
 }

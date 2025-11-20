@@ -35,59 +35,79 @@
 #include <video/LimitedRangeToFullRange.h>
 #include <video/rgb/ConversionRGB.h>
 
+#include <common/functions.h>
+
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <cstring>
+#include <limits>
+#include <stdexcept>
+#include <string>
+#include <vector>
+
 #include "CreateTestData.h"
 
 using OutputHasAlpha        = bool;
 using PremultiplyAlpha      = bool;
-using ScalingPerComponent   = std::array<int, 4>;
+using ScalingPerComponent   = std::array<double, 4>;
+using MeanPerComponent      = std::array<double, 4>;
 using InversionPerComponent = std::array<bool, 4>;
 using UChaVector            = std::vector<unsigned char>;
 
 namespace video::rgb::test
 {
 
-constexpr auto ScalingPerComponentToTest = {ScalingPerComponent({1, 1, 1, 1}),
-                                            ScalingPerComponent({2, 1, 1, 1}),
-                                            ScalingPerComponent({1, 2, 1, 1}),
-                                            ScalingPerComponent({1, 1, 2, 1}),
-                                            ScalingPerComponent({1, 1, 1, 2}),
-                                            ScalingPerComponent({1, 8, 1, 1})};
+const std::vector<ScalingPerComponent> ScalingPerComponentToTest = {
+  {1.0, 1.0, 1.0, 1.0},
+  {2.0, 1.0, 1.0, 1.0},
+  {1.0, 2.0, 1.0, 1.0},
+  {1.0, 1.0, 2.0, 1.0},
+  {1.0, 1.0, 1.0, 2.0},
+  {1.0, 8.0, 1.0, 1.0}};
 
-constexpr auto InversionPerComponentToTest = {InversionPerComponent({false, false, false, false}),
-                                              InversionPerComponent({true, false, false, false}),
-                                              InversionPerComponent({false, true, false, false}),
-                                              InversionPerComponent({false, false, true, false}),
-                                              InversionPerComponent({false, false, false, true}),
-                                              InversionPerComponent({true, true, true, true})};
+const std::vector<MeanPerComponent> MeanPerComponentToTest = {
+  {0.0, 0.0, 0.0, 0.0},
+  {10.0, 0.0, 0.0, 0.0}};
 
-std::string getTestName(const video::rgb::PixelFormatRGB &pixelFormat,
-                        const bool                        outputHasAlpha,
-                        const ScalingPerComponent        &scalingPerComponent,
-                        const InversionPerComponent      &inversionPerComponent,
-                        const bool                        limitedRange)
+const std::vector<InversionPerComponent> InversionPerComponentToTest = {
+  {false, false, false, false},
+  {true, false, false, false},
+  {false, true, false, false},
+  {false, false, true, false},
+  {false, false, false, true},
+  {true, true, true, true}};
+
+uint16_t floatToBFloat16(float value)
 {
-  return yuviewTest::formatTestName("PixelFormat",
-                                    pixelFormat.getName(),
-                                    "OutputHasAlpha",
-                                    outputHasAlpha,
-                                    "ScalingPerComponent",
-                                    scalingPerComponent,
-                                    "InversionPerComponen",
-                                    inversionPerComponent,
-                                    (limitedRange ? "_limitedRange" : "_fullRange"));
+  uint32_t raw;
+  std::memcpy(&raw, &value, sizeof(float));
+  return static_cast<uint16_t>(raw >> 16);
 }
 
-int scaleShiftClipInvertValue(const int  value,
-                              const int  bitDepth,
-                              const int  scale,
-                              const bool invert)
+int scaleShiftClipInvertValue(const int    value,
+                              const int    bitDepth,
+                              const double scale,
+                              const double mean,
+                              const bool   invert)
 {
-  const auto valueOriginalDepth = static_cast<int64_t>(convertBitness(value, 12, bitDepth));
-  const auto valueScaled        = valueOriginalDepth * scale;
-  const auto value8BitDepth     = (valueScaled >> (bitDepth - 8));
-  const auto valueClipped       = functions::clip(value8BitDepth, 0, 255);
-  return invert ? (255 - valueClipped) : valueClipped;
+  const auto valueOriginalDepth = static_cast<double>(convertBitness(value, 12, bitDepth));
+  const auto divisor            = std::ldexp(1.0, bitDepth - 8);
+  const auto normalized         = valueOriginalDepth / divisor;
+  const auto effectiveScale     = std::abs(scale) < std::numeric_limits<double>::epsilon() ? 1.0 : scale;
+  const auto adjusted           = (normalized / effectiveScale) + mean;
+  const auto clippedDouble      = functions::clip(adjusted, 0.0, 255.0);
+  auto       clipped            = static_cast<int>(std::lround(clippedDouble));
+  clipped                       = functions::clip(clipped, 0, 255);
+  return invert ? (255 - clipped) : clipped;
 };
+
+uint32_t floatToUInt32(float value)
+{
+  uint32_t raw;
+  std::memcpy(&raw, &value, sizeof(float));
+  return raw;
+}
 
 rgba_t getARGBValueFromDataLittleEndian(const UChaVector &data, const size_t i)
 {
@@ -101,6 +121,7 @@ rgba_t getARGBValueFromDataLittleEndian(const UChaVector &data, const size_t i)
 void checkOutputValues(const UChaVector            &data,
                        const int                    bitDepth,
                        const ScalingPerComponent   &scaling,
+                       const MeanPerComponent      &mean,
                        const bool                   limitedRange,
                        const InversionPerComponent &inversion,
                        const bool                   alphaShouldBeSet)
@@ -109,14 +130,14 @@ void checkOutputValues(const UChaVector            &data,
   {
     auto expectedValue = TEST_VALUES_12BIT.at(i);
 
-    expectedValue.R =
-        scaleShiftClipInvertValue(expectedValue.R, bitDepth, scaling[0], inversion[0]);
-    expectedValue.G =
-        scaleShiftClipInvertValue(expectedValue.G, bitDepth, scaling[1], inversion[1]);
-    expectedValue.B =
-        scaleShiftClipInvertValue(expectedValue.B, bitDepth, scaling[2], inversion[2]);
-    expectedValue.A =
-        scaleShiftClipInvertValue(expectedValue.A, bitDepth, scaling[3], inversion[3]);
+    expectedValue.R = scaleShiftClipInvertValue(
+      expectedValue.R, bitDepth, scaling[0], mean[0], inversion[0]);
+    expectedValue.G = scaleShiftClipInvertValue(
+      expectedValue.G, bitDepth, scaling[1], mean[1], inversion[1]);
+    expectedValue.B = scaleShiftClipInvertValue(
+      expectedValue.B, bitDepth, scaling[2], mean[2], inversion[2]);
+    expectedValue.A = scaleShiftClipInvertValue(
+      expectedValue.A, bitDepth, scaling[3], mean[3], inversion[3]);
 
     if (limitedRange)
     {
@@ -139,6 +160,7 @@ void checkOutputValues(const UChaVector            &data,
 void checkOutputValuesForPlane(const UChaVector            &data,
                                const PixelFormatRGB        &pixelFormat,
                                const ScalingPerComponent   &scaling,
+                               const MeanPerComponent      &mean,
                                const bool                   limitedRange,
                                const InversionPerComponent &inversion,
                                const Channel                channel)
@@ -150,8 +172,11 @@ void checkOutputValuesForPlane(const UChaVector            &data,
     const auto channelIndex = ChannelMapper.indexOf(channel);
     const auto bitDepth     = pixelFormat.getBitsPerSample();
 
-    expectedPlaneValue = scaleShiftClipInvertValue(
-        expectedPlaneValue, bitDepth, scaling[channelIndex], inversion[channelIndex]);
+    expectedPlaneValue = scaleShiftClipInvertValue(expectedPlaneValue,
+                             bitDepth,
+                             scaling[channelIndex],
+                             mean[channelIndex],
+                             inversion[channelIndex]);
 
     if (limitedRange)
       expectedPlaneValue = LimitedRangeToFullRange.at(expectedPlaneValue);
@@ -170,6 +195,7 @@ void testConversionToRGBA(const QByteArray            &sourceBuffer,
                           const PixelFormatRGB        &srcPixelFormat,
                           const InversionPerComponent &inversion,
                           const ScalingPerComponent   &componentScale,
+                          const MeanPerComponent      &componentMean,
                           const bool                   limitedRange,
                           const bool                   outputHasAlpha)
 {
@@ -182,6 +208,7 @@ void testConversionToRGBA(const QByteArray            &sourceBuffer,
                         TEST_FRAME_SIZE,
                         inversion.data(),
                         componentScale.data(),
+                        componentMean.data(),
                         limitedRange,
                         outputHasAlpha,
                         PremultiplyAlpha(false));
@@ -190,6 +217,7 @@ void testConversionToRGBA(const QByteArray            &sourceBuffer,
   checkOutputValues(outputBuffer,
                     srcPixelFormat.getBitsPerSample(),
                     componentScale,
+                    componentMean,
                     limitedRange,
                     inversion,
                     alphaShouldBeSet);
@@ -199,6 +227,7 @@ void testConversionToRGBASinglePlane(const QByteArray            &sourceBuffer,
                                      const PixelFormatRGB        &srcPixelFormat,
                                      const InversionPerComponent &inversion,
                                      const ScalingPerComponent   &componentScale,
+                                     const MeanPerComponent      &componentMean,
                                      const bool                   limitedRange,
                                      const bool)
 {
@@ -218,11 +247,17 @@ void testConversionToRGBASinglePlane(const QByteArray            &sourceBuffer,
                                            TEST_FRAME_SIZE,
                                            channel,
                                            componentScale[channelIndex],
+                                           componentMean[channelIndex],
                                            inversion[channelIndex],
                                            limitedRange);
 
-    checkOutputValuesForPlane(
-        outputBuffer, srcPixelFormat, componentScale, limitedRange, inversion, channel);
+    checkOutputValuesForPlane(outputBuffer,
+                              srcPixelFormat,
+                              componentScale,
+                              componentMean,
+                              limitedRange,
+                              inversion,
+                              channel);
   }
 }
 
@@ -230,13 +265,7 @@ using TestingFunction = std::function<void(const QByteArray &,
                                            const video::rgb::PixelFormatRGB &,
                                            const InversionPerComponent &,
                                            const ScalingPerComponent &,
-                                           const bool,
-                                           const bool)>;
-
-using TestingFunction = std::function<void(const QByteArray &,
-                                           const video::rgb::PixelFormatRGB &,
-                                           const InversionPerComponent &,
-                                           const ScalingPerComponent &,
+                                           const MeanPerComponent &,
                                            const bool,
                                            const bool)>;
 
@@ -260,13 +289,21 @@ void runTestForAllParameters(TestingFunction testingFunction)
             {
               for (const auto &componentScale : ScalingPerComponentToTest)
               {
-                for (const auto &inversion : InversionPerComponentToTest)
+                for (const auto &componentMean : MeanPerComponentToTest)
                 {
-                  for (const auto limitedRange : {false, true})
+                  for (const auto &inversion : InversionPerComponentToTest)
                   {
-                    EXPECT_NO_THROW(testingFunction(
-                        data, format, inversion, componentScale, limitedRange, outputHasAlpha))
-                        << "parametersAsString";
+                    for (const auto limitedRange : {false, true})
+                    {
+                      EXPECT_NO_THROW(testingFunction(data,
+                                                      format,
+                                                      inversion,
+                                                      componentScale,
+                                                      componentMean,
+                                                      limitedRange,
+                                                      outputHasAlpha))
+                          << "parametersAsString";
+                    }
                   }
                 }
               }
@@ -286,6 +323,256 @@ TEST(ConversionRGBTest, TestConversionToRGBA)
 TEST(ConversionRGBTest, TestConversionOfSinglePlaneToRGBA)
 {
   runTestForAllParameters(testConversionToRGBASinglePlane);
+}
+
+TEST(ConversionRGBTest, TestBFloat16Conversion)
+{
+  const PixelFormatRGB format(16,
+                              DataLayout::Packed,
+                              ChannelOrder::RGB,
+                              AlphaMode::Last,
+                              Endianness::Little,
+                              SampleType::BFloat16);
+  const Size frameSize{2, 1};
+
+  QByteArray source;
+  source.resize(static_cast<int>(frameSize.width * frameSize.height * format.nrChannels() * 2));
+  auto raw = reinterpret_cast<uint16_t *>(source.data());
+
+  // Pixel 0: black with full alpha
+  raw[0] = floatToBFloat16(0.0f);
+  raw[1] = floatToBFloat16(0.0f);
+  raw[2] = floatToBFloat16(0.0f);
+  raw[3] = floatToBFloat16(255.0f);
+
+  // Pixel 1: R=255, G=128, B=64, alpha=255
+  raw[4] = floatToBFloat16(255.0f);
+  raw[5] = floatToBFloat16(128.0f);
+  raw[6] = floatToBFloat16(64.0f);
+  raw[7] = floatToBFloat16(255.0f);
+
+  std::array<double, 4> scale{1.0, 1.0, 1.0, 1.0};
+  std::array<double, 4> mean{0.0, 0.0, 0.0, 0.0};
+  std::array<bool, 4>  invert{false, false, false, false};
+  std::vector<uint8_t> rgba(frameSize.width * frameSize.height * 4);
+
+  convertInputRGBToARGB(source,
+                        format,
+                        rgba.data(),
+                        frameSize,
+                        invert.data(),
+                        scale.data(),
+                        mean.data(),
+                        false,
+                        true,
+                        false);
+
+  EXPECT_EQ(rgba[0], 0u);   // B pixel 0
+  EXPECT_EQ(rgba[1], 0u);   // G pixel 0
+  EXPECT_EQ(rgba[2], 0u);   // R pixel 0
+  EXPECT_EQ(rgba[3], 255u); // A pixel 0
+
+  EXPECT_EQ(rgba[4], 64u);  // B pixel 1
+  EXPECT_EQ(rgba[5], 128u); // G pixel 1
+  EXPECT_EQ(rgba[6], 255u); // R pixel 1
+  EXPECT_EQ(rgba[7], 255u); // A pixel 1
+
+  std::vector<uint8_t> plane(frameSize.width * frameSize.height * 4);
+  convertSinglePlaneOfRGBToGreyscaleARGB(source,
+                                         format,
+                                         plane.data(),
+                                         frameSize,
+                                         Channel::Green,
+                                         1.0,
+                                         0.0,
+                                         false,
+                                         false);
+
+  EXPECT_EQ(plane[0], 0u);
+  EXPECT_EQ(plane[1], 0u);
+  EXPECT_EQ(plane[2], 0u);
+  EXPECT_EQ(plane[3], 255u);
+  EXPECT_EQ(plane[4], 128u);
+  EXPECT_EQ(plane[5], 128u);
+  EXPECT_EQ(plane[6], 128u);
+  EXPECT_EQ(plane[7], 255u);
+
+  const auto pixel = getPixelValueFromBuffer(source, format, frameSize, QPoint(1, 0));
+  EXPECT_EQ(pixel.R, 255u);
+  EXPECT_EQ(pixel.G, 128u);
+  EXPECT_EQ(pixel.B, 64u);
+  EXPECT_EQ(pixel.A, 255u);
+}
+
+TEST(ConversionRGBTest, TestBFloat16BGRXConversion)
+{
+  const PixelFormatRGB format(16,
+                              DataLayout::Packed,
+                              ChannelOrder::BGR,
+                              AlphaMode::Last,
+                              Endianness::Little,
+                              SampleType::BFloat16,
+                              true);
+  const Size frameSize{2, 1};
+
+  QByteArray source;
+  source.resize(static_cast<int>(frameSize.width * frameSize.height * format.nrChannels() * 2));
+  auto raw = reinterpret_cast<uint16_t *>(source.data());
+
+  // Pixel 0: black, unused alpha slot ignored
+  raw[0] = floatToBFloat16(0.0f);  // B
+  raw[1] = floatToBFloat16(0.0f);  // G
+  raw[2] = floatToBFloat16(0.0f);  // R
+  raw[3] = floatToBFloat16(0.0f);  // X
+
+  // Pixel 1: B=64, G=128, R=255, alpha ignored
+  raw[4] = floatToBFloat16(64.0f);
+  raw[5] = floatToBFloat16(128.0f);
+  raw[6] = floatToBFloat16(255.0f);
+  raw[7] = floatToBFloat16(42.0f);
+
+  std::array<double, 4> scale{1.0, 1.0, 1.0, 1.0};
+  std::array<double, 4> mean{0.0, 0.0, 0.0, 0.0};
+  std::array<bool, 4>  invert{false, false, false, false};
+  std::vector<uint8_t> rgba(frameSize.width * frameSize.height * 4);
+
+  convertInputRGBToARGB(source,
+                        format,
+                        rgba.data(),
+                        frameSize,
+                        invert.data(),
+                        scale.data(),
+                        mean.data(),
+                        false,
+                        true,
+                        false);
+
+  EXPECT_EQ(rgba[0], 0u);
+  EXPECT_EQ(rgba[1], 0u);
+  EXPECT_EQ(rgba[2], 0u);
+  EXPECT_EQ(rgba[3], 255u);
+
+  EXPECT_EQ(rgba[4], 64u);
+  EXPECT_EQ(rgba[5], 128u);
+  EXPECT_EQ(rgba[6], 255u);
+  EXPECT_EQ(rgba[7], 255u);
+
+  const auto pixel = getPixelValueFromBuffer(source, format, frameSize, QPoint(1, 0));
+  EXPECT_EQ(pixel.R, 255u);
+  EXPECT_EQ(pixel.G, 128u);
+  EXPECT_EQ(pixel.B, 64u);
+  EXPECT_EQ(pixel.A, 0u);
+}
+
+TEST(ConversionRGBTest, TestFloat32Conversion)
+{
+  const Size frameSize{2, 1};
+
+  const PixelFormatRGB packedFormat(32,
+                                    DataLayout::Packed,
+                                    ChannelOrder::RGB,
+                                    AlphaMode::None,
+                                    Endianness::Little,
+                                    SampleType::Float32);
+
+  QByteArray packedSource;
+  packedSource.resize(static_cast<int>(frameSize.width * frameSize.height * packedFormat.nrChannels() * sizeof(float)));
+  auto packedRaw = reinterpret_cast<uint32_t *>(packedSource.data());
+
+  // Pixel 0
+  packedRaw[0] = floatToUInt32(0.0f);
+  packedRaw[1] = floatToUInt32(0.0f);
+  packedRaw[2] = floatToUInt32(0.0f);
+  // Pixel 1
+  packedRaw[3] = floatToUInt32(255.0f);
+  packedRaw[4] = floatToUInt32(128.0f);
+  packedRaw[5] = floatToUInt32(64.0f);
+
+  std::array<double, 4> scale{1.0, 1.0, 1.0, 1.0};
+  std::array<double, 4> mean{0.0, 0.0, 0.0, 0.0};
+  std::array<bool, 4>  invert{false, false, false, false};
+  std::vector<uint8_t> rgba(frameSize.width * frameSize.height * 4);
+
+  convertInputRGBToARGB(packedSource,
+                        packedFormat,
+                        rgba.data(),
+                        frameSize,
+                        invert.data(),
+                        scale.data(),
+                        mean.data(),
+                        false,
+                        true,
+                        false);
+
+  EXPECT_EQ(rgba[0], 0u);
+  EXPECT_EQ(rgba[1], 0u);
+  EXPECT_EQ(rgba[2], 0u);
+  EXPECT_EQ(rgba[3], 255u);
+
+  EXPECT_EQ(rgba[4], 64u);
+  EXPECT_EQ(rgba[5], 128u);
+  EXPECT_EQ(rgba[6], 255u);
+  EXPECT_EQ(rgba[7], 255u);
+
+  const PixelFormatRGB planarFormat(32,
+                                    DataLayout::Planar,
+                                    ChannelOrder::RGB,
+                                    AlphaMode::None,
+                                    Endianness::Little,
+                                    SampleType::Float32);
+
+  QByteArray planarSource;
+  planarSource.resize(static_cast<int>(frameSize.width * frameSize.height * planarFormat.nrChannels() * sizeof(float)));
+  auto planarRaw = reinterpret_cast<uint32_t *>(planarSource.data());
+
+  // Plane R
+  planarRaw[0] = floatToUInt32(0.0f);
+  planarRaw[1] = floatToUInt32(255.0f);
+  // Plane G
+  planarRaw[2] = floatToUInt32(0.0f);
+  planarRaw[3] = floatToUInt32(128.0f);
+  // Plane B
+  planarRaw[4] = floatToUInt32(0.0f);
+  planarRaw[5] = floatToUInt32(64.0f);
+
+  std::vector<uint8_t> planarRgba(frameSize.width * frameSize.height * 4);
+  convertInputRGBToARGB(planarSource,
+                        planarFormat,
+                        planarRgba.data(),
+                        frameSize,
+                        invert.data(),
+                        scale.data(),
+                        mean.data(),
+                        false,
+                        true,
+                        false);
+
+  EXPECT_EQ(planarRgba[4], 64u);
+  EXPECT_EQ(planarRgba[5], 128u);
+  EXPECT_EQ(planarRgba[6], 255u);
+  EXPECT_EQ(planarRgba[7], 255u);
+
+  std::vector<uint8_t> plane(frameSize.width * frameSize.height * 4);
+  convertSinglePlaneOfRGBToGreyscaleARGB(planarSource,
+                                         planarFormat,
+                                         plane.data(),
+                                         frameSize,
+                                         Channel::Green,
+                                         1.0,
+                                         0.0,
+                                         false,
+                                         false);
+
+  EXPECT_EQ(plane[4], 128u);
+  EXPECT_EQ(plane[5], 128u);
+  EXPECT_EQ(plane[6], 128u);
+  EXPECT_EQ(plane[7], 255u);
+
+  const auto pixel = getPixelValueFromBuffer(planarSource, planarFormat, frameSize, QPoint(1, 0));
+  EXPECT_EQ(pixel.R, 255u);
+  EXPECT_EQ(pixel.G, 128u);
+  EXPECT_EQ(pixel.B, 64u);
+  EXPECT_EQ(pixel.A, 0u);
 }
 
 } // namespace video::rgb::test
