@@ -567,12 +567,12 @@ void MainWindow::currentSelectedItemsChanged(playlistItem *item1, playlistItem *
   if (item1 == nullptr)
   {
     // Nothing is selected
-    setWindowTitle("YUView");
+    setWindowTitle("YUView-ML");
   }
   else
   {
     // update window caption
-    QString newCaption = "YUView - " + item1->text(0);
+    QString newCaption = "YUView-ML - " + item1->text(0);
     setWindowTitle(newCaption);
   }
 }

@@ -127,7 +127,8 @@ void updateHandler::startCheckForNewVersion(bool userRequest, bool force)
 {
   QSettings settings;
   settings.beginGroup("updates");
-  bool checkForUpdates = settings.value("checkForUpdates", true).toBool();
+  bool checkForUpdates =
+      settings.value("checkForUpdates", CHECK_FOR_UPDATES_DEFAULT).toBool();
   forceUpdate = force;
   settings.endGroup();
   if (!userRequest && !checkForUpdates && !forceUpdate)
@@ -317,7 +318,8 @@ void updateHandler::replyFinished(QNetworkReply *reply)
       // Get if the user activated automatic checking for a new version
       QSettings settings;
       settings.beginGroup("updates");
-      bool checkForUpdates = settings.value("checkForUpdates", true).toBool();
+      bool checkForUpdates =
+          settings.value("checkForUpdates", CHECK_FOR_UPDATES_DEFAULT).toBool();
 
       if (checkForUpdates)
         QMessageBox::information(mainWidget, "No update found.", "Your YUView version is up to date. YUView will check for updates every time you start the application.");
@@ -587,7 +589,8 @@ UpdateDialog::UpdateDialog(QWidget *parent) :
   // Load the update settings from the QSettings
   QSettings settings;
   settings.beginGroup("updates");
-  bool checkForUpdates = settings.value("checkForUpdates", true).toBool();
+  bool checkForUpdates =
+      settings.value("checkForUpdates", CHECK_FOR_UPDATES_DEFAULT).toBool();
   QString updateBehavior = settings.value("updateBehavior", "ask").toString();
   settings.endGroup();
 

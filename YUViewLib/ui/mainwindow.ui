@@ -17,7 +17,7 @@
    </sizepolicy>
   </property>
   <property name="windowTitle">
-   <string>YUView</string>
+   <string>YUView-ML</string>
   </property>
   <property name="unifiedTitleAndToolBarOnMac">
    <bool>false</bool>

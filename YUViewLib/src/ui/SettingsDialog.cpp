@@ -70,7 +70,8 @@ SettingsDialog::SettingsDialog(QWidget *parent) : QDialog(parent)
   ui.checkBoxAutodetectFileType->setChecked(settings.value("AutodetectFileType", true).toBool());
 
   settings.beginGroup("updates");
-  const auto checkForUpdates = settings.value("checkForUpdates", true).toBool();
+  const auto checkForUpdates =
+      settings.value("checkForUpdates", CHECK_FOR_UPDATES_DEFAULT).toBool();
   ui.groupBoxUpdates->setChecked(checkForUpdates);
   if (UPDATE_FEATURE_ENABLE)
   {
@@ -175,6 +176,11 @@ void SettingsDialog::initializeDefaults()
     settings.setValue("View/GridColor", QColor(0, 0, 0));
   if (!settings.contains("Plot/BackgroundColor"))
     settings.setValue("Plot/BackgroundColor", QColor(255, 255, 255));
+
+  settings.beginGroup("updates");
+  if (!settings.contains("checkForUpdates"))
+    settings.setValue("checkForUpdates", CHECK_FOR_UPDATES_DEFAULT);
+  settings.endGroup();
 }
 
 unsigned int SettingsDialog::getCacheSizeInMB() const

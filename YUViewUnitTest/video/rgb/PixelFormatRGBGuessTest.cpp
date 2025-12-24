@@ -220,9 +220,9 @@ INSTANTIATE_TEST_SUITE_P(
 
         // Bit depth upgrade from separate generic indicator ("_10b_") combined with rgb/bgr
         // indicator that itself has no digits
-        TestParameters({FileInfoForGuess({"out_640x640_10b_rgb.rgb", "", 640u * 640u * 10u/8u * 3u}),
+        TestParameters({FileInfoForGuess({"out_640x640_10b_rgb.rgb", "", 640u * 640u * 2u * 3u}),
                 PixelFormatRGB(10, DataLayout::Packed, ChannelOrder::RGB)}),
-        TestParameters({FileInfoForGuess({"out_640x640_10b_bgr.bgr", "", 640u * 640u * 10u/8u * 3u}),
+        TestParameters({FileInfoForGuess({"out_640x640_10b_bgr.bgr", "", 640u * 640u * 2u * 3u}),
                 PixelFormatRGB(10, DataLayout::Packed, ChannelOrder::BGR)}),
 
         // CMYK file

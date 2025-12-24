@@ -104,6 +104,9 @@ const bool is_Q_OS_LINUX = false;
 // environment is used).
 #define UPDATE_FEATURE_ENABLE 0
 
+// Default state for automatic version checks. Keep disabled unless the user explicitly opts in.
+constexpr bool CHECK_FOR_UPDATES_DEFAULT = false;
+
 #ifndef YUVIEW_VERSION
 #define YUVIEW_VERSION "Unknown"
 #endif
