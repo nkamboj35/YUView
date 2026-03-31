@@ -4,13 +4,12 @@ name: CI flatpak
 
 # Controls when the action will run. 
 on:
-  # Trigger the workflow if we merged into develop or if we create a release
-  # Since the workflow takes significantly longer (because of the ffmpeg build) we want to execute 
-  # this as little as possible.
+  # Disabled for YUView-ML fork -- use BuildML.yml instead.
+  # To re-enable, restore branches to [ develop ].
   push:
-    branches: [ develop ]
+    branches: [disabled-upstream-ci]
   release:
-    branches: [ develop ]
+    branches: [disabled-upstream-ci]
     types:
       - created
         

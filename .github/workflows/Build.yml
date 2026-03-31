@@ -2,9 +2,11 @@ name: CI build
 
 on:
   push:
+    branches: [disabled-upstream-ci]
   release:
     types:
       - created
+    branches: [disabled-upstream-ci]
 
 jobs:
   build-unix-native:

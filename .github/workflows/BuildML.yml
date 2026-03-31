@@ -1,0 +1,129 @@
+name: YUView-ML Windows Build
+
+on:
+  push:
+    branches: [develop]
+    tags: ['v*']
+  pull_request:
+    branches: [develop]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-2022
+    strategy:
+      matrix:
+        autoUpdate: [true, false]
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+    - uses: ilammy/msvc-dev-cmd@v1
+    - run: git fetch --prune --unshallow
+    - name: Install Qt base
+      run: |
+        cd ../../
+        mkdir -p YUViewQt/YUViewQt
+        cd YUViewQt/YUViewQt
+        curl -L https://github.com/ChristianFeldmann/YUViewQt/releases/download/QtBase-6.9.0/qtBase-6-9-0-windows-2022.zip -o Qt.zip
+        7z x  Qt.zip
+        echo "${{ github.workspace }}\..\..\YUViewQt\YUViewQt\Qt\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+    - name: Install libde265
+      run: |
+        curl -L https://github.com/ChristianFeldmann/libde265/releases/download/v1.1/libde265.dll -o libde265.dll
+        curl -L https://raw.githubusercontent.com/ChristianFeldmann/libde265/master/COPYING -o libde265License.txt
+    - name: Install jom
+      run: |
+        choco install jom
+    - name: Install openSSL
+      run: |
+        mkdir openSSL
+        cd openSSL
+        curl -L https://github.com/ChristianFeldmann/YUViewQt/releases/download/openSSL3.5.0/openSSL-3-5-0-windows-2022.zip -o openSSL.zip
+        7z x openSSL.zip
+        cd ..
+    - name: Activate auto update
+      if: matrix.autoUpdate == true
+      run: sed -i -- "s/#define UPDATE_FEATURE_ENABLE 0/#define UPDATE_FEATURE_ENABLE 1/g" YUViewLib/src/common/Typedef.h
+      shell: bash
+    - name: Build
+      run: |
+        echo "Creating Build dir and entering it"
+        mkdir build
+        cd build
+        echo "Qmake Version:"
+        d:\a\YUViewQt\YUViewQt\Qt\bin\qmake --version
+        echo "Executing qmake..."
+        d:\a\YUViewQt\YUViewQt\Qt\bin\qmake CONFIG+=UNITTESTS ..
+        echo "Executing jom:"
+        jom
+    - name: Run Unittests
+      run: ${{ github.workspace }}\build\YUViewUnitTest\YUViewUnitTest
+    - name: WindeployQT
+      run: |
+        mkdir deploy
+        cd deploy
+        cp ../build/YUViewApp/YUView-ML.exe .
+        d:\a\YUViewQt\YUViewQt\Qt\bin\windeployqt.exe --release --no-compiler-runtime YUView-ML.exe
+        cp ../openSSL/*.dll .
+        mkdir decoder
+        cp ..\libde265.dll decoder
+        cp ..\libde265License.txt decoder
+        cp ../LICENSE.GPL3 .
+        cd ..
+        python deployment/versioning.py -d deploy -o deploy/versioninfo.txt
+        mkdir artifacts
+        7z a artifacts/YUView-ML-Win.zip ./deploy/*
+    - name: Wix Windows
+      if: matrix.autoUpdate == true
+      run: |
+        cd ${{ github.workspace }}/deployment/wix
+        cp 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Redist\MSVC\v143\MergeModules\Microsoft_VC143_CRT_x64.msm' .
+        & "C:\Program Files (x86)\WiX Toolset v3.14\bin\heat.exe" dir ../../deploy -gg -dr APPLICATIONFOLDER -srd -sreg -cg YUViewComponents -out harvestedDirectory.wxs
+
+        # The upstream YUView.wxs has a hardcoded file ID for YUView.exe.
+        # Since we renamed the exe to YUView-ML.exe, heat generates a different ID.
+        # Extract the correct ID and patch YUView.wxs before compiling.
+        $harvested = Get-Content harvestedDirectory.wxs -Raw
+        if ($harvested -match 'File Id="(fil[A-F0-9]+)"[^>]*Source="[^"]*\\YUView-ML\.exe"') {
+          $newFileId = $Matches[1]
+          Write-Host "Patching YUView.wxs: replacing exe file ID with $newFileId"
+          (Get-Content YUView.wxs -Raw) -replace 'fil3E83ED7F7D6B84D78789778753FB9420', $newFileId | Set-Content YUView.wxs
+        } else {
+          Write-Error "Could not find YUView-ML.exe file ID in harvestedDirectory.wxs"
+          exit 1
+        }
+
+        & "C:\Program Files (x86)\WiX Toolset v3.14\bin\candle.exe" -dConfiguration=Release -dOutDir=bin/Release/ '-dTargetExt=.msi' '-dTargetFileName=YUView-ML-Setup.msi' -dTargetName=YUView-ML-Setup -out obj/Release/ -arch x64 -ext "C:\Program Files (x86)\WiX Toolset v3.14\bin\WixUIExtension.dll" YUView.wxs
+        & "C:\Program Files (x86)\WiX Toolset v3.14\bin\candle.exe" -dConfiguration=Release -dOutDir=bin/Release/ '-dTargetExt=.msi' '-dTargetFileName=YUView-ML-Setup.msi' -dTargetName=YUView-ML-Setup -out obj/Release/ -arch x64 harvestedDirectory.wxs
+        & "C:\Program Files (x86)\WiX Toolset v3.14\bin\light.exe" -b ../../deploy -out bin/Release/YUView-ML-Setup.msi -pdbout bin/Release/YUView-ML-Setup.wixpdb -cultures:null -ext "C:\Program Files (x86)\WiX Toolset v3.14\bin\WixUIExtension.dll" -contentsfile obj/Release/YUView-ML-Setup.wixproj.BindContentsFileListnull.txt -outputsfile obj/Release/YUView-ML-Setup.wixproj.BindOutputsFileListnull.txt -builtoutputsfile obj/Release/YUView-ML-Setup.wixproj.BindBuiltOutputsFileListnull.txt obj/Release/YUView.wixobj obj/Release/harvestedDirectory.wixobj
+        cd ${{ github.workspace }}
+        cp deployment/wix/bin/Release/YUView-ML-Setup.msi ./
+    - name: Upload Artifact (Autoupdate)
+      if: matrix.autoUpdate == true
+      uses: actions/upload-artifact@v4
+      with:
+        name: YUView-ML-windows-2022-autoupdate.zip
+        path: artifacts
+    - name: Upload Artifact (Autoupdate disabled)
+      if: matrix.autoUpdate == false
+      uses: actions/upload-artifact@v4
+      with:
+        name: YUView-ML-windows-2022.zip
+        path: artifacts
+    - name: Upload Windows installer Artifact
+      if: matrix.autoUpdate == true
+      uses: actions/upload-artifact@v4
+      with:
+        name: YUView-ML-windows-2022.msi
+        path: ./YUView-ML-Setup.msi
+    - name: Release Zip
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: artifacts/YUView-ML-Win.zip
+    - name: Release Installer
+      uses: softprops/action-gh-release@v1
+      if: startsWith(github.ref, 'refs/tags/') && matrix.autoUpdate == true
+      with:
+        files: YUView-ML-Setup.msi
