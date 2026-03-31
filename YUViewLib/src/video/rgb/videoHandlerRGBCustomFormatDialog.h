@@ -51,6 +51,7 @@ public:
 
 private slots:
   void on_bitDepthSpinBox_valueChanged(int value);
+  void on_sampleTypeComboBox_currentIndexChanged(int index);
 
 private:
   Ui::CustomRGBFormatDialog ui;

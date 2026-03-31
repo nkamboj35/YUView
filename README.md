@@ -67,5 +67,16 @@ To automatically detect these formats, include the corresponding tag in your fil
 
 You can also specify `planar` or `packed` in the filename to hint the data layout.
 
+**Available Presets:**
+
+| Layout            | BF16                      | FP16                      | FP32                      |
+|-------------------|---------------------------|---------------------------|---------------------------|
+| RGB (packed)      | `RGB 16bit BF16`          | `RGB 16bit FP16`          | `RGB 32bit FP32`          |
+| BGR (packed)      | `BGR 16bit BF16`          | `BGR 16bit FP16`          | `BGR 32bit FP32`          |
+| RGBP (planar)     | `RGB 16bit planar BF16`   | `RGB 16bit planar FP16`   | `RGB 32bit planar FP32`   |
+| BGRP (planar)     | `BGR 16bit planar BF16`   | `BGR 16bit planar FP16`   | `BGR 32bit planar FP32`   |
+| RGBx (4th ignored)| `RGBX 16bit BF16`         | `RGBX 16bit FP16`         | `RGBX 32bit FP32`         |
+| BGRx (4th ignored)| `BGRX 16bit BF16`         | `BGRX 16bit FP16`         | `BGRX 32bit FP32`         |
+
 ### Debug Logging
 For troubleshooting, this build automatically generates a log file named `yuview_log.txt` in the same directory as the executable. This file captures all application debug output.

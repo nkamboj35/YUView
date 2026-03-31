@@ -96,20 +96,32 @@ playlistItemRawFile::playlistItemRawFile(const QString &rawFilePath,
   if (qFrameSize.width() > 0 && qFrameSize.height() > 0)
     frameSize = Size(qFrameSize.width(), qFrameSize.height());
 
-  // Create a new videoHandler instance depending on the input format
+  // Create a new videoHandler instance depending on the input format.
+  // An explicit fmt parameter ("rgb" or "yuv") takes priority over extension matching
+  // so that the manual dialog and playlist reload always work for ambiguous extensions.
   QFileInfo  fi(rawFilePath);
-  const auto ext = fi.suffix().toLower();
-  if (isInExtensions(ext, YUV_EXTENSIONS) || isInExtensions(ext, RAW_BAYER_EXTENSIONS) ||
-      fmt.toLower() == "yuv")
+  const auto ext      = fi.suffix().toLower();
+  const auto fmtLower = fmt.toLower();
+  if (fmtLower == "rgb")
+  {
+    this->video     = std::make_unique<video::rgb::videoHandlerRGB>();
+    this->rawFormat = video::RawFormat::RGB;
+  }
+  else if (fmtLower == "yuv")
   {
     this->video     = std::make_unique<video::yuv::videoHandlerYUV>();
     this->rawFormat = video::RawFormat::YUV;
   }
   else if (isInExtensions(ext, RGB_EXTENSIONS) || isInExtensions(ext, RGBA_EXTENSIONS) ||
-           isInExtensions(ext, CMYK_EXTENSIONS) || fmt.toLower() == "rgb")
+           isInExtensions(ext, CMYK_EXTENSIONS))
   {
     this->video     = std::make_unique<video::rgb::videoHandlerRGB>();
     this->rawFormat = video::RawFormat::RGB;
+  }
+  else if (isInExtensions(ext, YUV_EXTENSIONS) || isInExtensions(ext, RAW_BAYER_EXTENSIONS))
+  {
+    this->video     = std::make_unique<video::yuv::videoHandlerYUV>();
+    this->rawFormat = video::RawFormat::YUV;
   }
   else
     Q_ASSERT_X(false, Q_FUNC_INFO, "No video handler for the raw file format found.");

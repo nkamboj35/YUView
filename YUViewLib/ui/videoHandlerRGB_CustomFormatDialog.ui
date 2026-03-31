@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>260</width>
-    <height>276</height>
+    <height>330</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -77,6 +77,20 @@
        </item>
       </widget>
      </item>
+     <item row="3" column="0">
+      <widget class="QLabel" name="labelSampleType">
+       <property name="text">
+        <string>Sample Type</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <widget class="QComboBox" name="sampleTypeComboBox">
+       <property name="toolTip">
+        <string>Data type of each color sample (integer or floating point).</string>
+       </property>
+      </widget>
+     </item>
     </layout>
    </item>
    <item>
@@ -121,6 +135,16 @@
         </property>
        </widget>
       </item>
+      <item>
+       <widget class="QCheckBox" name="ignoreAlphaCheckBox">
+        <property name="text">
+         <string>Ignore alpha (e.g. RGBx)</string>
+        </property>
+        <property name="toolTip">
+         <string>When checked, the 4th channel is present in the file but ignored during display.</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>
@@ -152,10 +176,12 @@
  <tabstops>
   <tabstop>rgbOrderComboBox</tabstop>
   <tabstop>bitDepthSpinBox</tabstop>
+  <tabstop>sampleTypeComboBox</tabstop>
   <tabstop>planarCheckBox</tabstop>
   <tabstop>alphaChannelGroupBox</tabstop>
   <tabstop>afterRGBRadioButton</tabstop>
   <tabstop>beforeRGBRadioButton</tabstop>
+  <tabstop>ignoreAlphaCheckBox</tabstop>
  </tabstops>
  <resources/>
  <connections>

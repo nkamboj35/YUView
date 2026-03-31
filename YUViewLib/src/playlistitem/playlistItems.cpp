@@ -88,7 +88,21 @@ playlistItem *guessFileTypeFromFileAndCreatePlaylistItem(QWidget *parent, const 
   };
 
   if (checkForExtension(playlistItemRawFile::getSupportedFileExtensions))
+  {
+    if (extension == "raw")
+    {
+      const auto baseName = fi.completeBaseName().toLower();
+      const auto rgbHints = {"fp16", "bf16", "fp32",
+                             "rgb",  "bgr",  "gbr",  "brg",
+                             "rgbp", "bgrp", "rgbx", "bgrx"};
+      for (const auto &hint : rgbHints)
+      {
+        if (baseName.contains(hint))
+          return new playlistItemRawFile(fileName, {}, {}, "rgb");
+      }
+    }
     return new playlistItemRawFile(fileName);
+  }
   if (checkForExtension(playlistItemCompressedVideo::getSupportedFileExtensions))
     return new playlistItemCompressedVideo(fileName);
   if (checkForExtension(playlistItemImageFile::getSupportedFileExtensions))

@@ -115,7 +115,7 @@ constexpr bool CHECK_FOR_UPDATES_DEFAULT = false;
 #define VERSION_CHECK 0
 #define YUVIEW_HASH 0
 #else
-#define VERSION_CHECK 1
+#define VERSION_CHECK 0
 #endif
 
 #define MAX_RECENT_FILES 10

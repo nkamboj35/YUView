@@ -49,23 +49,35 @@ videoHandlerRGBCustomFormatDialog::videoHandlerRGBCustomFormatDialog(
   this->ui.alphaChannelGroupBox->setChecked(false);
   this->ui.afterRGBRadioButton->setChecked(false);
 
-  if (rgbFormat.hasAlpha())
+  const auto hasAlphaChannel =
+      rgbFormat.hasAlpha() || rgbFormat.isAlphaIgnored();
+  if (hasAlphaChannel)
   {
     this->ui.alphaChannelGroupBox->setChecked(true);
     auto alphaPosition = rgbFormat.getChannelPosition(Channel::Alpha);
     this->ui.beforeRGBRadioButton->setChecked(alphaPosition == 0);
     this->ui.afterRGBRadioButton->setChecked(alphaPosition == 3);
   }
+  this->ui.ignoreAlphaCheckBox->setChecked(rgbFormat.isAlphaIgnored());
 
   if (auto index = ChannelOrderMapper.indexOf(rgbFormat.getChannelOrder()))
   {
     this->ui.rgbOrderComboBox->setCurrentIndex(int(index));
   }
 
+  this->ui.sampleTypeComboBox->addItems(
+      functions::toQStringList(SampleTypeMapper.getNames()));
+  this->ui.sampleTypeComboBox->setCurrentIndex(
+      static_cast<int>(SampleTypeMapper.indexOf(rgbFormat.getSampleType())));
+
   auto bitDepth = rgbFormat.getBitsPerSample();
   this->ui.bitDepthSpinBox->setValue(bitDepth);
   this->ui.comboBoxEndianness->setEnabled(bitDepth > 8);
   this->ui.comboBoxEndianness->setCurrentIndex(rgbFormat.getEndianess() == Endianness::Big ? 0 : 1);
+
+  const auto isFloatType = rgbFormat.getSampleType() != SampleType::UnsignedInteger &&
+                           rgbFormat.getSampleType() != SampleType::SignedInteger;
+  this->ui.bitDepthSpinBox->setEnabled(!isFloatType);
 
   this->ui.planarCheckBox->setChecked(rgbFormat.getDataLayout() == DataLayout::Planar);
 }
@@ -98,12 +110,49 @@ PixelFormatRGB videoHandlerRGBCustomFormatDialog::getSelectedRGBFormat() const
   if (this->ui.comboBoxEndianness->currentIndex() == 0)
     endianness = Endianness::Big;
 
-  return PixelFormatRGB(bitDepth, dataLayout, *channelOrder, alphaMode, endianness);
+  auto sampleType      = SampleType::UnsignedInteger;
+  auto sampleTypeIndex = this->ui.sampleTypeComboBox->currentIndex();
+  if (sampleTypeIndex >= 0)
+    if (auto st = SampleTypeMapper.getValueAt(static_cast<std::size_t>(sampleTypeIndex)))
+      sampleType = *st;
+
+  bool alphaIgnored = this->ui.ignoreAlphaCheckBox->isChecked();
+
+  return PixelFormatRGB(
+      bitDepth, dataLayout, *channelOrder, alphaMode, endianness, sampleType, alphaIgnored);
 }
 
 void videoHandlerRGBCustomFormatDialog::on_bitDepthSpinBox_valueChanged(int value)
 {
   this->ui.comboBoxEndianness->setEnabled(value > 8);
+}
+
+void videoHandlerRGBCustomFormatDialog::on_sampleTypeComboBox_currentIndexChanged(int index)
+{
+  if (index < 0)
+    return;
+
+  auto sampleType = SampleTypeMapper.getValueAt(static_cast<std::size_t>(index));
+  if (!sampleType)
+    return;
+
+  switch (*sampleType)
+  {
+  case SampleType::Float16:
+  case SampleType::BFloat16:
+    this->ui.bitDepthSpinBox->setValue(16);
+    this->ui.bitDepthSpinBox->setEnabled(false);
+    break;
+  case SampleType::Float32:
+    this->ui.bitDepthSpinBox->setValue(32);
+    this->ui.bitDepthSpinBox->setEnabled(false);
+    break;
+  default:
+    this->ui.bitDepthSpinBox->setEnabled(true);
+    break;
+  }
+
+  this->ui.comboBoxEndianness->setEnabled(this->ui.bitDepthSpinBox->value() > 8);
 }
 
 } // namespace video::rgb
